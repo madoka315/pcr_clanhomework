@@ -1,5 +1,6 @@
 import os
 from PIL import Image,ImageDraw,ImageFont
+from hoshino.util import pic2b64
 from ..priconne import chara
 
 PATH = f'{os.path.dirname(os.path.abspath(__file__))}'
@@ -131,4 +132,6 @@ def generateImg(data: list, boss_id, date):
             fill="black",
             spacing=2
         )
-    return base
+    base.save(f'{PATH}/tmp/{date}_{boss_id}.jpg')
+    b64 = pic2b64(Image.open(f'{PATH}/tmp/{date}_{boss_id}.jpg'))
+    return b64

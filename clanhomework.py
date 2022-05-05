@@ -66,14 +66,16 @@ async def parseHomework(res: json, boss_id, date):
             continue
     sv.logger.info(f"自动作业数量：{len(auto_list)}")
     im = generateImg(auto_list, boss_id, date)
-    im.save(f'{PATH}/tmp/{date}_{boss_id}.jpg', quality=50)
-    base64_str = pic2b64(im)
-    return base64_str
+    return im
     
-try:
-    loadJson(default_date)
-except:
-    pass
+async def downloadResource(date, timestamp):
+    global resource
+    params["date"]=date
+    res = await aiorequests.get(URL, params=params, headers=headers)
+    resource["last_req_time"] = timestamp
+    resource["res"] = await res.json()
+    saveJson(resource, date)
+    
     
 @sv.on_prefix('查作业')
 async def requestHomework(bot, ev):
@@ -101,21 +103,21 @@ async def requestHomework(bot, ev):
                 sv.logger.info('Loader:loaded history homework')
             except:
                 #不存在该json，尝试下载
-                params["date"]=date
-                res = await aiorequests.get(URL, params=params, headers=headers)
-                resource["last_req_time"] = timestamp
-                resource["res"] = await res.json()
-                saveJson(resource, date)
+                await downloadResource(date, timestamp)
                 sv.logger.info('Loader:loaded downloaded homework')
         else:
             date = default_date
-            loadJson(date)
-            sv.logger.info('Loader:loaded default homework')
+            try:
+                loadJson(default_date)
+                sv.logger.info('Loader:loaded default homework')
+            except:
+                await downloadResource(date, timestamp)
+                sv.logger.info('Loader:loaded downloaded homework')
     # 是否有作业
     if resource["res"]["status"] == 0:
-        await bot.finish(ev, "不存在本月数据。\n你可以输入“历史作业”查看以前的作业")#FIX_ME
+        await bot.finish(ev, f'[CQ:image,file=file:///{PATH}/assests/error.png]')
     # 检查上次请求的时间,没超过15分钟就使用缓存
-    if resource["last_req_time"] != None and timestamp-resource["last_req_time"] < 1800:#FIX_ME
+    if resource["last_req_time"] != None and timestamp-resource["last_req_time"] < 900:
         tmp_fp = f'{PATH}/tmp/{date}_{boss_id}.jpg'
         if os.path.exists(tmp_fp):
             sv.logger.info("FileMode:using cached res&pic file")
