@@ -66,7 +66,8 @@ async def parseHomework(res: json, boss_id, date):
             continue
     sv.logger.info(f"自动作业数量：{len(auto_list)}")
     im = generateImg(auto_list, boss_id, date)
-    return im
+    base64_str = pic2b64(im)
+    return base64_str
     
 async def downloadResource(date, timestamp):
     global resource
@@ -121,7 +122,7 @@ async def requestHomework(bot, ev):
         tmp_fp = f'{PATH}/tmp/{date}_{boss_id}.jpg'
         if os.path.exists(tmp_fp):
             sv.logger.info("FileMode:using cached res&pic file")
-            base64_str = pic2b64(Image.open(f'{PATH}/tmp/{date}_{boss_id}.jpg'))
+            await bot.finish(ev, f'[CQ:image,file=file:///{PATH}/tmp/{date}_{boss_id}.jpg]')
         else:
             sv.logger.info("FileMode:using cached res... generating pic file")
             base64_str = await parseHomework(resource["res"], boss_id, date)
@@ -135,5 +136,5 @@ async def requestHomework(bot, ev):
         saveJson(resource, date)
         base64_str = await parseHomework(resource["res"], boss_id, date)
     end_time = int(round((time.time()) * 1000))
-    await bot.send(ev, f"[CQ:image,file={base64_str}]")
-    sv.logger.info(f'Succeed in {end_time-start_time}ms')
+    await bot.send(ev, f"[CQ:image,file={base64_str}]", at_sender=True)
+    sv.logger.info(f'Process succeed in {end_time-start_time}ms')

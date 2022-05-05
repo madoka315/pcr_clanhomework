@@ -1,9 +1,9 @@
 import os
 from PIL import Image,ImageDraw,ImageFont
-from hoshino.util import pic2b64
 from ..priconne import chara
 
 PATH = f'{os.path.dirname(os.path.abspath(__file__))}'
+FONT_PATH = f'{PATH}/assests/font.ttf'
 
 '''
 bg的留白共1468x1399px。左起始点34px
@@ -14,40 +14,37 @@ bg的留白共1468x1399px。左起始点34px
 def generateImg(data: list, boss_id, date): 
     num = len(data)
     #   根据数据量调整绘制参数
-    if num <= 16:
+    col_overflow = 1355
+    col_interval = 20
+    posy = 122
+    if num < 16:
         text_size = 19
-        text_font = ImageFont.truetype(f'{PATH}/assests/font.ttf', size=18)
-        text_overflow = 48
+        text_font = ImageFont.truetype(FONT_PATH, size=18)
+        text_overflow = 66
         colnum = 8
         icon_size = 128
         posx = 97
-        posy = 122
         row_interval = 62
-        col_interval = 20
-    elif num <= 33:
+    elif num < 32:
         text_size = 17
-        text_font = ImageFont.truetype(f'{PATH}/assests/font.ttf', size=16)
-        text_overflow = 32
+        text_font = ImageFont.truetype(FONT_PATH, size=16)
+        text_overflow = 48
         colnum = 11
         icon_size = 86
         posx = 79
-        posy = 122
         row_interval = 44
-        col_interval = 20
     else:
         text_size = 13
-        text_font = ImageFont.truetype(f'{PATH}/assests/font.ttf', size=12)
-        text_overflow = 24
+        text_font = ImageFont.truetype(FONT_PATH, size=12)
+        text_overflow = 48
         colnum = 14
         icon_size = 64
         posx = 72
-        posy = 122
         row_interval = 37
-        col_interval = 20
     base = Image.open(f'{PATH}/assests/bg.png')
     draw = ImageDraw.Draw(base)
     # 右上信息
-    stage_id = (boss_id+1)%4
+    stage_id = boss_id%4+1
     boss = boss_id//4+1
     draw.text(
         (1214,50), 
@@ -58,7 +55,12 @@ def generateImg(data: list, boss_id, date):
     )
     # 处理数据
     total_text_line = 0
+    count = 0
+    mode_tip = False
     for i in range(0, num):
+        # 已达到4列的最大条目数
+        if count == 55:
+            mode_tip = True
         tag = data[i]["sn"]
         damage = data[i]["damage"]
         party_tip = f"{tag} {damage}万" #队伍id伤害
@@ -67,19 +69,26 @@ def generateImg(data: list, boss_id, date):
         info = data[i]["info"] if data[i]["info"] !="" else False
         #队伍含有特殊说明时进行换行处理
         if info:
-            info_bytes = info.encode('gbk')
-            if len(info_bytes) <= text_overflow:
-                party_tip += f" 说明：{info}"
-                text_newline = 1    #本条特殊说明有几行
+            party_tip += ' 说明：'
+            text_bytes = party_tip.encode('gbk')+info.encode('gbk')
+            if len(text_bytes) <= text_overflow:
+                party_tip += f"{info}"
+                text_newline = 1    #本条文字有几行
             else:
-                party_tip += f" 说明："
-                text_newline = len(info_bytes) // text_overflow +1
+                party_tip = ''
+                text_newline = len(text_bytes) // text_overflow +1
                 for j in range(0, text_newline):
-                    try:
-                        msg = info_bytes[j*text_overflow:(j+1)*text_overflow]
-                        msg = msg.decode('gbk')
-                    except:
-                        msg = info_bytes[:(j+1)*text_overflow+1] if j==0 else info_bytes[j*text_overflow+1:(j+1)*text_overflow+1]
+                    if j == 0:
+                        try:
+                            msg = text_bytes[:(j+1)*text_overflow]
+                            msg = msg.decode('gbk')
+                            method = 0
+                        except:
+                            msg = text_bytes[:(j+1)*text_overflow+1]
+                            msg = msg.decode('gbk')
+                            method = 1
+                    else:
+                        msg = text_bytes[j*text_overflow+method:(j+1)*text_overflow+method]
                         msg = msg.decode('gbk')
                     party_tip += f"{msg}"
                     if j < text_newline-1:
@@ -93,45 +102,65 @@ def generateImg(data: list, boss_id, date):
         # 是补偿刀时红框提示
         if data[i]["remain"] !=0:
             rect_outline = ['DeepPink',2]
-        # 当前行。是第0行时进行特殊位置处理
-        if i >= colnum:
-            cur_row = i%colnum
-            if cur_row == 0:
-                # x坐标换列
-                posx = posx+icon_size*5+row_interval
-                # 重置文字行溢出
-                total_text_line = text_newline
-        else:
-            cur_row = i
-        # print(f'总文字行{total_text_line}，本次行数{text_newline}')
+        # 当前行。文字行数超出最大值时进行处理，否则直到达到预定值才换列
+        cur_row = count%colnum
+        cur_col_px = total_text_line*text_size+cur_row*10+(cur_row+1)*(icon_size+10)
+        if cur_col_px > col_overflow:
+            add_count = colnum-count%colnum
+            count += add_count
+            cur_row = count%colnum
+        if cur_row == 0 and i != 0:
+            # x坐标换列
+            posx = posx+icon_size*5+row_interval
+            # 重置文字行溢出
+            total_text_line = text_newline
         rect_position = [
             posx-5, 
             posy-5+cur_row*(icon_size+col_interval)+(total_text_line-text_newline)*text_size, 
             posx+5+icon_size*5, 
             posy+5+(cur_row+1)*icon_size+total_text_line*text_size+cur_row*col_interval
         ]
-        # print(rect_position)
-        draw.rounded_rectangle(
-            rect_position,
-            8,
-            'white',
-            rect_outline[0],
-            rect_outline[1]
-        )
-        units = [chara.fromid(i) for i in data[i]["unit"]]
-        party_img = chara.gen_team_pic(units, icon_size, star_slot_verbose=False)
-        base.paste(party_img,(
-                posx,posy+cur_row*(icon_size+col_interval)+total_text_line*text_size
+        if mode_tip:
+            draw.rounded_rectangle(
+                [rect_position[0],
+                rect_position[1],
+                rect_position[2],
+                posy+5+(cur_row+1)*icon_size+(total_text_line-text_newline)*text_size+cur_row*col_interval],
+                8,
+                'DarkGray'
             )
-        )
-        draw.multiline_text((
-                posx,posy-5+cur_row*(icon_size+col_interval)+(total_text_line-text_newline)*text_size
-            ), 
-            party_tip, 
-            font=text_font, 
-            fill="black",
-            spacing=2
-        )
+            draw.multiline_text((
+                    posx+1.25*icon_size,posy+cur_row*(icon_size+col_interval)+(total_text_line-text_newline+0.5)*text_size
+                ), 
+                '展示不下了！\n请访问 caimogu.cc/gzlj \n查看更多作业', 
+                font=text_font, 
+                fill="white",
+                spacing=6,
+                align='center'
+            )
+            break
+        else:
+            draw.rounded_rectangle(
+                rect_position,
+                8,
+                'white',
+                rect_outline[0],
+                rect_outline[1]
+            )
+            units = [chara.fromid(i) for i in data[i]["unit"]]
+            party_img = chara.gen_team_pic(units, icon_size, star_slot_verbose=False)
+            base.paste(party_img,(
+                    posx,posy+cur_row*(icon_size+col_interval)+total_text_line*text_size
+                )
+            )
+            draw.multiline_text((
+                    posx,posy-3+cur_row*(icon_size+col_interval)+(total_text_line-text_newline)*text_size
+                ), 
+                party_tip, 
+                font=text_font, 
+                fill="black",
+                spacing=2
+            )
+        count += 1
     base.save(f'{PATH}/tmp/{date}_{boss_id}.jpg')
-    b64 = pic2b64(Image.open(f'{PATH}/tmp/{date}_{boss_id}.jpg'))
-    return b64
+    return base
