@@ -116,13 +116,13 @@ async def requestHomework(bot, ev):
                 sv.logger.info('Loader:loaded downloaded homework')
     # 是否有作业
     if resource["res"]["status"] == 0:
-        await bot.finish(ev, f'[CQ:image,file=file:///{PATH}/assests/error.png]')
+        await bot.finish(ev, f'[CQ:image,file=file:///{PATH}/assests/error.png]', at_sender=True)
     # 检查上次请求的时间,没超过15分钟就使用缓存
     if resource["last_req_time"] != None and timestamp-resource["last_req_time"] < 900:
         tmp_fp = f'{PATH}/tmp/{date}_{boss_id}.jpg'
         if os.path.exists(tmp_fp):
             sv.logger.info("FileMode:using cached res&pic file")
-            await bot.finish(ev, f'[CQ:image,file=file:///{PATH}/tmp/{date}_{boss_id}.jpg]')
+            await bot.finish(ev, f'[CQ:image,file=file:///{PATH}/tmp/{date}_{boss_id}.jpg]', at_sender=True)
         else:
             sv.logger.info("FileMode:using cached res... generating pic file")
             base64_str = await parseHomework(resource["res"], boss_id, date)
