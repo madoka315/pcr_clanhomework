@@ -71,7 +71,10 @@ async def parseHomework(res: json, boss_id, date):
     
 async def downloadResource(date, timestamp):
     global resource
-    params["date"]=date
+    if date == default_date:
+        params["date"]=''
+    else:
+        params["date"]=date
     res = await aiorequests.get(URL, params=params, headers=headers)
     resource["last_req_time"] = timestamp
     resource["res"] = await res.json()
@@ -115,7 +118,7 @@ async def requestHomework(bot, ev):
                 await downloadResource(date, timestamp)
                 sv.logger.info('Loader:loaded downloaded homework')
     # 是否有作业
-    if resource["res"]["status"] == 0:
+    if resource["res"]["status"] == 0:        
         await bot.finish(ev, f'[CQ:image,file=file:///{PATH}/assests/error.png]', at_sender=True)
     # 检查上次请求的时间,没超过15分钟就使用缓存
     if resource["last_req_time"] != None and timestamp-resource["last_req_time"] < 900:
@@ -136,5 +139,5 @@ async def requestHomework(bot, ev):
         saveJson(resource, date)
         base64_str = await parseHomework(resource["res"], boss_id, date)
     end_time = int(round((time.time()) * 1000))
-    await bot.send(ev, f"[CQ:image,file={base64_str}]", at_sender=True)
+    await bot.send(ev, f"\n*使用阵容前，请务必模拟以确保可用性。\n*由于数据不包含阵容星级，请以当前国服六星进度为准\n[CQ:image,file={base64_str}]", at_sender=True)
     sv.logger.info(f'Process succeed in {end_time-start_time}ms')
