@@ -75,11 +75,10 @@ async def downloadResource(date, timestamp):
         params["date"]=''
     else:
         params["date"]=date
-    res = await aiorequests.get(URL, params=params, headers=headers)
+    res = await aiorequests.get(URL, params=params, headers=headers)        
     resource["last_req_time"] = timestamp
     resource["res"] = await res.json()
     saveJson(resource, date)
-    
     
 @sv.on_prefix('查作业')
 async def requestHomework(bot, ev):
@@ -132,11 +131,7 @@ async def requestHomework(bot, ev):
     else:
         #超过15分钟 重新获取并保存
         sv.logger.info('FileMode:requesting online homework file')
-        params["date"]=date
-        res = await aiorequests.get(URL, params=params, headers=headers)
-        resource["last_req_time"] = timestamp
-        resource["res"] = await res.json()
-        saveJson(resource, date)
+        await downloadResource(date, timestamp)
         base64_str = await parseHomework(resource["res"], boss_id, date)
     end_time = int(round((time.time()) * 1000))
     await bot.send(ev, f"\n*使用阵容前，请务必模拟以确保可用性。\n*由于数据不包含阵容星级，请以当前国服六星进度为准\n[CQ:image,file={base64_str}]", at_sender=True)
